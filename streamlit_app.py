@@ -140,7 +140,7 @@ if not selection["api_key"]:
     st.stop()
 
 if selection["provider"] == "OpenAI":
-    llm_stream = ChatOpenAI(api_key=selection["api_key"], model_name=selection["model"], temperature=0.2, streaming=True)
+    llm_stream = ChatOpenAI(api_key=selection["api_key"], model=selection["model"], temperature=0.2, streaming=True)
 elif selection["provider"] == "GROQ":
     llm_stream = ChatGroq(api_key=selection["api_key"], model=selection["model"], temperature=0.2, streaming=True)
 elif selection["provider"] == "Anthropic":
