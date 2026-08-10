@@ -11,8 +11,7 @@ if os.name == 'posix':
 from langchain_openai import ChatOpenAI
 from langchain_groq import ChatGroq
 from langchain_anthropic import ChatAnthropic
-from langchain.schema import HumanMessage, AIMessage
-
+from langchain_core.messages import HumanMessage, AIMessage
 from rag_utils import (
     load_doc_to_db, 
     load_url_to_db, 
