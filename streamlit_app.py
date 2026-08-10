@@ -4,14 +4,18 @@ import streamlit as st
 from dotenv import load_dotenv
 
 if os.name == 'posix':
-    __import__('pysqlite3')
-    import sys
-    sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+    try:
+        __import__('pysqlite3')
+        import sys
+        sys.modules['sqlite3'] = sys.modules['pysqlite3']
+    except ImportError:
+        pass
 
 from langchain_openai import ChatOpenAI
 from langchain_groq import ChatGroq
 from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage, AIMessage
+
 from rag_utils import (
     load_doc_to_db, 
     load_url_to_db, 
@@ -54,7 +58,7 @@ st.markdown("""
         font-weight: 500;
     }
 </style>
-""", unsafe_allow_html=unsafe_allow_html)
+""", unsafe_allow_html=True)
 
 if "session_id" not in st.session_state:
     st.session_state.session_id = str(uuid.uuid4())
@@ -75,21 +79,19 @@ def render_sidebar():
             index=0
         )
         
+        api_key = ""
         if provider == "OpenAI":
             model = st.selectbox("Model", ["gpt-4o-mini", "gpt-4o", "o3-mini"], index=0)
-            api_key = st.text_input("OpenAI API Key", type="password", value=os.getenv("OPENAI_API_KEY", ""))
-            if api_key:
-                os.environ["OPENAI_API_KEY"] = api_key
+            env_key = os.getenv("OPENAI_API_KEY", "")
+            api_key = st.text_input("OpenAI API Key", type="password", value=env_key)
         elif provider == "GROQ":
             model = st.selectbox("Model", ["llama-3.3-70b-versatile", "deepseek-r1-distill-llama-70b", "qwen-2.5-32b"], index=0)
-            api_key = st.text_input("GROQ API Key", type="password", value=os.getenv("GROQ_API_KEY", ""))
-            if api_key:
-                os.environ["GROQ_API_KEY"] = api_key
+            env_key = os.getenv("GROQ_API_KEY", "")
+            api_key = st.text_input("GROQ API Key", type="password", value=env_key)
         elif provider == "Anthropic":
             model = st.selectbox("Model", ["claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022"], index=0)
-            api_key = st.text_input("Anthropic API Key", type="password", value=os.getenv("ANTHROPIC_API_KEY", ""))
-            if api_key:
-                os.environ["ANTHROPIC_API_KEY"] = api_key
+            env_key = os.getenv("ANTHROPIC_API_KEY", "")
+            api_key = st.text_input("Anthropic API Key", type="password", value=env_key)
 
         st.divider()
         st.markdown("### Document Sources")
@@ -126,29 +128,23 @@ def render_sidebar():
                 st.session_state.messages = []
                 st.rerun()
 
-    return {"provider": provider, "model": model}
+    return {"provider": provider, "model": model, "api_key": api_key}
 
 selection = render_sidebar()
 
 st.title("DocuMind")
 st.markdown("<div class='sub-caption'>Interactive Document Intelligence & Contextual Assistant</div>", unsafe_allow_html=True)
 
-if selection["provider"] == "OpenAI" and not os.environ.get("OPENAI_API_KEY"):
-    st.info("Enter your OpenAI API key in the sidebar to begin.")
-    st.stop()
-elif selection["provider"] == "GROQ" and not os.environ.get("GROQ_API_KEY"):
-    st.info("Enter your GROQ API key in the sidebar to begin.")
-    st.stop()
-elif selection["provider"] == "Anthropic" and not os.environ.get("ANTHROPIC_API_KEY"):
-    st.info("Enter your Anthropic API key in the sidebar to begin.")
+if not selection["api_key"]:
+    st.info(f"Enter your {selection['provider']} API key in the sidebar to begin.")
     st.stop()
 
 if selection["provider"] == "OpenAI":
-    llm_stream = ChatOpenAI(api_key=os.environ.get("OPENAI_API_KEY"), model_name=selection["model"], temperature=0.2, streaming=True)
+    llm_stream = ChatOpenAI(api_key=selection["api_key"], model_name=selection["model"], temperature=0.2, streaming=True)
 elif selection["provider"] == "GROQ":
-    llm_stream = ChatGroq(api_key=os.environ.get("GROQ_API_KEY"), model=selection["model"], temperature=0.2, streaming=True)
+    llm_stream = ChatGroq(api_key=selection["api_key"], model=selection["model"], temperature=0.2, streaming=True)
 elif selection["provider"] == "Anthropic":
-    llm_stream = ChatAnthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"), model=selection["model"], temperature=0.2, streaming=True)
+    llm_stream = ChatAnthropic(api_key=selection["api_key"], model=selection["model"], temperature=0.2, streaming=True)
 
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
