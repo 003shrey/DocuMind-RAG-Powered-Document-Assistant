@@ -12,8 +12,15 @@ from langchain_community.document_loaders import (
 )
 
 from langchain_community.vectorstores import Chroma
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.embeddings import HuggingFaceEmbeddings
+try:
+    from langchain_text_splitters import RecursiveCharacterTextSplitter
+except ModuleNotFoundError:
+    from langchain.text_splitter import RecursiveCharacterTextSplitter
+
+try:
+    from langchain_huggingface import HuggingFaceEmbeddings
+except ModuleNotFoundError:
+    from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.chains import create_history_aware_retriever, create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
