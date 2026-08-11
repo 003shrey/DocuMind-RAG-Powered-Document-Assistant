@@ -12,11 +12,22 @@ from langchain_community.document_loaders import (
 )
 
 from langchain_community.vectorstores import Chroma
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.embeddings import HuggingFaceEmbeddings
+try:
+    from langchain_text_splitters import RecursiveCharacterTextSplitter
+except ModuleNotFoundError:
+    from langchain.text_splitter import RecursiveCharacterTextSplitter
+
+try:
+    from langchain_huggingface import HuggingFaceEmbeddings
+except ModuleNotFoundError:
+    from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain.chains import create_history_aware_retriever, create_retrieval_chain
-from langchain.chains.combine_documents import create_stuff_documents_chain
+try:
+    from langchain.chains import create_history_aware_retriever, create_retrieval_chain
+    from langchain.chains.combine_documents import create_stuff_documents_chain
+except ModuleNotFoundError:
+    from langchain_classic.chains import create_history_aware_retriever, create_retrieval_chain
+    from langchain_classic.chains.combine_documents import create_stuff_documents_chain
 
 load_dotenv()
 
@@ -76,6 +87,8 @@ def _split_and_load_docs(docs):
         st.session_state.vector_db = initialize_vector_db(document_chunks)
     else:
         st.session_state.vector_db.add_documents(document_chunks)
+    
+    st.session_state.use_rag = True
 
 
 def load_doc_to_db():
@@ -165,7 +178,8 @@ def get_conversational_rag_chain(llm):
         """You are DocuMind, an intelligent document analysis and RAG assistant.
 You provide precise, structured, and factual answers based on retrieved context.
 If context is incomplete, use general domain knowledge while clearly distinguishing factual document context from general reasoning.
-
+Never say you cannot access uploaded files or URLs. They are already processed into context; if context is insufficient, ask the user to upload clearer text documents or enable RAG.
+ 
 Context:
 {context}"""),
         MessagesPlaceholder(variable_name="messages"),

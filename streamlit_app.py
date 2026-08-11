@@ -16,12 +16,34 @@ from langchain_groq import ChatGroq
 from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage, AIMessage
 
-from rag_utils import (
-    load_doc_to_db, 
-    load_url_to_db, 
-    stream_llm_response, 
-    stream_llm_rag_response
-)
+RAG_IMPORT_ERROR = None
+try:
+    from rag_utils import (
+        load_doc_to_db,
+        load_url_to_db,
+        stream_llm_response,
+        stream_llm_rag_response
+    )
+except ModuleNotFoundError as e:
+    RAG_IMPORT_ERROR = e
+
+    def load_doc_to_db():
+        st.error(f"RAG dependencies are missing: {RAG_IMPORT_ERROR}")
+
+    def load_url_to_db():
+        st.error(f"RAG dependencies are missing: {RAG_IMPORT_ERROR}")
+
+    def stream_llm_response(llm_stream, messages):
+        response_message = ""
+        for chunk in llm_stream.stream(messages):
+            response_message += chunk.content
+            yield chunk
+        st.session_state.messages.append({"role": "assistant", "content": response_message})
+
+    def stream_llm_rag_response(llm_stream, messages):
+        st.error(f"RAG dependencies are missing: {RAG_IMPORT_ERROR}")
+        if False:
+            yield ""
 
 load_dotenv()
 os.environ["USER_AGENT"] = "documind-agent"
@@ -69,6 +91,9 @@ if "rag_sources" not in st.session_state:
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
+if "use_rag" not in st.session_state:
+    st.session_state.use_rag = False
+
 def render_sidebar():
     with st.sidebar:
         st.markdown("### Model Configuration")
@@ -95,6 +120,8 @@ def render_sidebar():
 
         st.divider()
         st.markdown("### Document Sources")
+        if RAG_IMPORT_ERROR:
+            st.warning(f"RAG disabled due to missing dependency: {RAG_IMPORT_ERROR}")
         
         st.file_uploader(
             "Upload Files", 
@@ -102,6 +129,7 @@ def render_sidebar():
             accept_multiple_files=True,
             on_change=load_doc_to_db,
             key="rag_docs",
+            disabled=bool(RAG_IMPORT_ERROR),
         )
         
         st.text_input(
@@ -109,6 +137,7 @@ def render_sidebar():
             placeholder="https://example.com",
             on_change=load_url_to_db,
             key="rag_url",
+            disabled=bool(RAG_IMPORT_ERROR),
         )
         
         is_vector_db_loaded = ("vector_db" in st.session_state and st.session_state.vector_db is not None)
@@ -122,7 +151,7 @@ def render_sidebar():
         
         col1, col2 = st.columns([1.2, 1])
         with col1:
-            st.toggle("Enable RAG", value=is_vector_db_loaded, key="use_rag", disabled=not is_vector_db_loaded)
+            st.toggle("Enable RAG", key="use_rag", disabled=not is_vector_db_loaded)
         with col2:
             if st.button("Clear Chat", use_container_width=True):
                 st.session_state.messages = []
@@ -162,6 +191,8 @@ if prompt := st.chat_input("Ask anything about your documents..."):
         ]
         
         if not st.session_state.get("use_rag", False):
+            if "vector_db" in st.session_state and st.session_state.vector_db is not None:
+                st.info("RAG is OFF, so this response uses general model knowledge only. Turn on 'Enable RAG' in the sidebar to use uploaded documents.")
             st.write_stream(stream_llm_response(llm_stream, messages))
         else:
             st.write_stream(stream_llm_rag_response(llm_stream, messages))
