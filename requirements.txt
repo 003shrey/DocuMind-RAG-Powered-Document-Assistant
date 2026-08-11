@@ -4,6 +4,7 @@ pysqlite3-binary; sys_platform == 'linux'
 chromadb
 sentence-transformers
 langchain
+langchain-classic
 langchain-community
 langchain-core
 langchain-text-splitters
