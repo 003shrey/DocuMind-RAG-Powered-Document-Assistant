@@ -91,6 +91,9 @@ if "rag_sources" not in st.session_state:
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
+if "use_rag" not in st.session_state:
+    st.session_state.use_rag = False
+
 def render_sidebar():
     with st.sidebar:
         st.markdown("### Model Configuration")
@@ -148,7 +151,7 @@ def render_sidebar():
         
         col1, col2 = st.columns([1.2, 1])
         with col1:
-            st.toggle("Enable RAG", value=is_vector_db_loaded, key="use_rag", disabled=not is_vector_db_loaded)
+            st.toggle("Enable RAG", key="use_rag", disabled=not is_vector_db_loaded)
         with col2:
             if st.button("Clear Chat", use_container_width=True):
                 st.session_state.messages = []
@@ -188,6 +191,8 @@ if prompt := st.chat_input("Ask anything about your documents..."):
         ]
         
         if not st.session_state.get("use_rag", False):
+            if "vector_db" in st.session_state and st.session_state.vector_db is not None:
+                st.info("RAG is OFF, so this response uses general model knowledge only. Turn on 'Enable RAG' in the sidebar to use uploaded documents.")
             st.write_stream(stream_llm_response(llm_stream, messages))
         else:
             st.write_stream(stream_llm_rag_response(llm_stream, messages))
