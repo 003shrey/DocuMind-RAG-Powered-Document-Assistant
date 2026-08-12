@@ -92,6 +92,13 @@ RuntimeError: Tried to instantiate class '__path__._path', but it does not exist
 
 It can be due to Streamlit’s local sources watcher inspecting Torch’s custom modules. A monkey-patch can be applied at the very start of your script to safely bypass these errors.
 
+**openai.AuthenticationError (or provider authentication failed)**
+
+If the app shows an authentication failure while chatting:
+- Verify the API key in the sidebar matches the selected provider (OpenAI, GROQ, or Anthropic).
+- Ensure the key is active and has access to the selected model.
+- If using environment variables, confirm they are set correctly before launching Streamlit.
+
 ## Contributing
 Contributions are welcome! If you’d like to contribute:
 1. Fork the repository.

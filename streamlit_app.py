@@ -94,6 +94,17 @@ if "messages" not in st.session_state:
 if "use_rag" not in st.session_state:
     st.session_state.use_rag = False
 
+
+def _show_llm_error(provider, error):
+    error_type = type(error).__name__
+    error_message = str(error).lower()
+
+    if error_type in {"AuthenticationError", "PermissionDeniedError"} or "authentication" in error_message or "incorrect api key" in error_message:
+        st.error(f"{provider} authentication failed. Please enter a valid API key in the sidebar and try again.")
+    else:
+        st.error(f"Request failed: {error}")
+
+
 def render_sidebar():
     with st.sidebar:
         st.markdown("### Model Configuration")
@@ -168,12 +179,16 @@ if not selection["api_key"]:
     st.info(f"Enter your {selection['provider']} API key in the sidebar to begin.")
     st.stop()
 
-if selection["provider"] == "OpenAI":
-    llm_stream = ChatOpenAI(api_key=selection["api_key"], model=selection["model"], temperature=0.2, streaming=True)
-elif selection["provider"] == "GROQ":
-    llm_stream = ChatGroq(api_key=selection["api_key"], model=selection["model"], temperature=0.2, streaming=True)
-elif selection["provider"] == "Anthropic":
-    llm_stream = ChatAnthropic(api_key=selection["api_key"], model=selection["model"], temperature=0.2, streaming=True)
+try:
+    if selection["provider"] == "OpenAI":
+        llm_stream = ChatOpenAI(api_key=selection["api_key"], model=selection["model"], temperature=0.2, streaming=True)
+    elif selection["provider"] == "GROQ":
+        llm_stream = ChatGroq(api_key=selection["api_key"], model=selection["model"], temperature=0.2, streaming=True)
+    elif selection["provider"] == "Anthropic":
+        llm_stream = ChatAnthropic(api_key=selection["api_key"], model=selection["model"], temperature=0.2, streaming=True)
+except Exception as e:
+    _show_llm_error(selection["provider"], e)
+    st.stop()
 
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
@@ -189,10 +204,13 @@ if prompt := st.chat_input("Ask anything about your documents..."):
             HumanMessage(content=m["content"]) if m["role"] == "user" else AIMessage(content=m["content"])
             for m in st.session_state.messages
         ]
-        
-        if not st.session_state.get("use_rag", False):
-            if "vector_db" in st.session_state and st.session_state.vector_db is not None:
-                st.info("RAG is OFF, so this response uses general model knowledge only. Turn on 'Enable RAG' in the sidebar to use uploaded documents.")
-            st.write_stream(stream_llm_response(llm_stream, messages))
-        else:
-            st.write_stream(stream_llm_rag_response(llm_stream, messages))
+
+        try:
+            if not st.session_state.get("use_rag", False):
+                if "vector_db" in st.session_state and st.session_state.vector_db is not None:
+                    st.info("RAG is OFF, so this response uses general model knowledge only. Turn on 'Enable RAG' in the sidebar to use uploaded documents.")
+                st.write_stream(stream_llm_response(llm_stream, messages))
+            else:
+                st.write_stream(stream_llm_rag_response(llm_stream, messages))
+        except Exception as e:
+            _show_llm_error(selection["provider"], e)
